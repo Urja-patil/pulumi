@@ -1,0 +1,50 @@
+________________________________
+1. Create EC2 instance pulumi
+________________________________
+1. Generate SSH key
+ssh-keygen -t rsa -b 4096 -C "u@info.com"
+
+2. Access SSH public key
+cat ~/.ssh/id_rsa.pub
+
+3. index.ts
+import * as pulumi from "@pulumi/pulumi";
+import * as aws from "@pulumi/aws";
+import * as awsx from "@pulumi/awsx";
+// Create an AWS resource (S3 Bucket)
+//const bucket = new aws.s3.Bucket("my-bucket");
+// Export the name of the bucket
+//export const bucketName = bucket.id;
+// Create a new security group for the EC2 instance
+const securityGroup = new aws.ec2.SecurityGroup("web-secgrp", {
+    description: "Enable HTTP access",
+    ingress: [
+        {
+            protocol: "tcp",
+            fromPort: 80,
+            toPort: 80,
+            cidrBlocks: ["0.0.0.0/0"],
+        },
+    ],
+});
+// Get the latest Amazon Linux 2 AMI
+const ami = aws.ec2.getAmi({
+    mostRecent: true,
+    owners: ["amazon"],
+    filters: [
+        { name: "name", values: ["amzn2-ami-hvm-*-x86_64-gp2"] },
+    ],
+});
+// Create an EC2 instance
+const server = new aws.ec2.Instance("web-server-www", {
+    instanceType: "t2.micro",
+    ami: ami.then(ami => ami.id), // Use the AMI ID we fetched earlier
+    securityGroups: [securityGroup.name], // Attach the security group created above
+    tags: {
+        Name: "web-server-www",
+    },
+});
+// Export the public IP of the instance
+export const publicIp = server.publicIp;
+
+4. pulumi up

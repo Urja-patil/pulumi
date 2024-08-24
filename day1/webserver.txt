@@ -1,0 +1,66 @@
+______________________________
+Create web server with pulumi
+______________________________
+1. index.ts
+
+import * as pulumi from "@pulumi/pulumi";
+import * as aws from "@pulumi/aws";
+// Create a new security group that allows SSH and HTTP access
+const securityGroup = new aws.ec2.SecurityGroup("web-secgrp", {
+    description: "Enable SSH and HTTP access",
+    ingress: [
+        {
+            protocol: "tcp",
+            fromPort: 22,
+            toPort: 22,
+            cidrBlocks: ["0.0.0.0/0"],  // Allows SSH from anywhere
+        },
+        {
+            protocol: "tcp",
+            fromPort: 80,
+            toPort: 80,
+            cidrBlocks: ["0.0.0.0/0"],  // Allows HTTP from anywhere
+        },
+    ],
+});
+// Generate a new SSH key pair
+const keyPair = new aws.ec2.KeyPair("my-keypair", {
+    keyName: "my-keypair",
+    publicKey: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCy8oz...<rest_of_the_key>... user@hostname",  // Replace with your actual SSH public key
+});
+// Get the latest Amazon Linux 2 AMI
+const ami = aws.ec2.getAmi({
+    mostRecent: true,
+    owners: ["amazon"],
+    filters: [
+        { name: "name", values: ["amzn2-ami-hvm-*-x86_64-gp2"] },
+    ],
+});
+// User data script to install Apache web server
+const userDataScript = `#!/bin/bash
+sudo yum update -y
+sudo yum install -y httpd
+sudo systemctl start httpd
+sudo systemctl enable httpd`;
+// Create an EC2 instance with SSH access and Apache installed
+const server = new aws.ec2.Instance("web-server", {
+    instanceType: "t2.micro",
+    ami: ami.then(ami => ami.id),  // Use the AMI ID we fetched earlier
+    securityGroups: [securityGroup.name],  // Attach the security group created above
+    keyName: keyPair.keyName,  // Attach the SSH key pair for access
+    userData: userDataScript,  // Add the user data script to install Apache
+    tags: {
+        Name: "web-server",
+    },
+});
+// Export the public IP and DNS name of the instance
+export const publicIp = server.publicIp;
+export const publicDns = server.publicDns;
+
+4. Replace SSH key in above file
+5. pulumi up
+6. access web server by curl <generated IP>
+
+ssi -i /home/labuser/.ssh/id_rsa.pub ec2-user@<generated-domain>
+ps -ef | grep http
+

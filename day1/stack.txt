@@ -1,0 +1,20 @@
+Create pulumi stack
+pulumi config set
+
+To create new typescript pulumi project
+pulumi new aws-typescript
+
+To get more options
+pulumi new
+
+pulumi up or pulumi up -v=4 to deploy pulumi stack
+
+get created bucket name
+aws s3 ls $(pulumi stack output bucketName)
+
+access buket endpoint
+curl $(pulumi stack output bucketEndpoint)
+
+Destroy pulumi stack
+pulumi destoy -v=6
+remove everything - pulumi stack rm <stackname>
